@@ -1,25 +1,45 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "../lib/AuthContext"
+import { isSupabaseConfigured } from "../lib/supabaseClient"
 
 export default function Login() {
+  const [mode, setMode] = useState("signin") // "signin" | "signup"
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [role, setRole] = useState("technician")
   const [error, setError] = useState("")
+  const [notice, setNotice] = useState("")
   const [loading, setLoading] = useState(false)
-  const { login } = useAuth()
+  const { login, signup } = useAuth()
   const navigate = useNavigate()
+
+  function switchMode(newMode) {
+    setMode(newMode)
+    setError("")
+    setNotice("")
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
     setError("")
+    setNotice("")
     setLoading(true)
     try {
-      await login(email, password, role)
-      navigate("/dashboard")
+      if (mode === "signup") {
+        const result = await signup(email, password, role)
+        if (result.needsConfirmation) {
+          setNotice("Account created — check your email to confirm before signing in.")
+          setMode("signin")
+        } else {
+          navigate("/dashboard")
+        }
+      } else {
+        await login(email, password, role)
+        navigate("/dashboard")
+      }
     } catch (err) {
-      setError(err.message || "Login failed. Check your credentials.")
+      setError(err.message || "Something went wrong. Please try again.")
     } finally {
       setLoading(false)
     }
@@ -41,8 +61,45 @@ export default function Login() {
         </div>
 
         <form onSubmit={handleSubmit} className="bg-frost-50 rounded-xl shadow-panel px-7 py-8">
-          <h2 className="font-display text-lg font-semibold text-steel-900 mb-1">Staff Sign In</h2>
-          <p className="text-sm text-steel-700 mb-6">Access the inventory &amp; storage dashboard.</p>
+          <div className="flex mb-6 bg-frost-100 rounded-lg p-1">
+            <button
+              type="button"
+              onClick={() => switchMode("signin")}
+              className={`flex-1 text-sm font-medium py-2 rounded-md transition-colors ${
+                mode === "signin" ? "bg-white text-steel-900 shadow-sm" : "text-steel-700/60"
+              }`}
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              onClick={() => switchMode("signup")}
+              className={`flex-1 text-sm font-medium py-2 rounded-md transition-colors ${
+                mode === "signup" ? "bg-white text-steel-900 shadow-sm" : "text-steel-700/60"
+              }`}
+            >
+              Create Account
+            </button>
+          </div>
+
+          <h2 className="font-display text-lg font-semibold text-steel-900 mb-1">
+            {mode === "signin" ? "Staff Sign In" : "Create Staff Account"}
+          </h2>
+          <p className="text-sm text-steel-700 mb-6">
+            {mode === "signin"
+              ? "Access the inventory & storage dashboard."
+              : "Register as new lab staff to get access."}
+          </p>
+
+          {!isSupabaseConfigured && (
+            <div className="mb-4 rounded-md bg-amber/10 border border-amber/30 px-3 py-2">
+              <p className="text-xs text-amber-700" style={{ color: "#8a5c03" }}>
+                {mode === "signup"
+                  ? "Account creation requires a connected database — not available in this demo instance."
+                  : "Running in demo mode — enter any email & password to continue."}
+              </p>
+            </div>
+          )}
 
           <label className="block text-xs font-medium text-steel-700 mb-1.5">Email</label>
           <input
@@ -60,7 +117,8 @@ export default function Login() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            placeholder="••••••••"
+            minLength={mode === "signup" ? 6 : undefined}
+            placeholder={mode === "signup" ? "At least 6 characters" : "••••••••"}
             className="w-full mb-4 px-3 py-2.5 rounded-md border border-frost-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-clinical focus:border-clinical"
           />
 
@@ -75,13 +133,16 @@ export default function Login() {
           </select>
 
           {error && <p className="text-sm text-blood mb-4">{error}</p>}
+          {notice && <p className="text-sm text-clinical-dark mb-4">{notice}</p>}
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || (mode === "signup" && !isSupabaseConfigured)}
             className="w-full bg-clinical hover:bg-clinical-dark text-white text-sm font-medium py-2.5 rounded-md transition-colors disabled:opacity-60"
           >
-            {loading ? "Signing in…" : "Sign In"}
+            {loading
+              ? mode === "signin" ? "Signing in…" : "Creating account…"
+              : mode === "signin" ? "Sign In" : "Create Account"}
           </button>
         </form>
 

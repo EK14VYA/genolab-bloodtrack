@@ -8,17 +8,32 @@ export function AuthProvider({ children }) {
     const stored = sessionStorage.getItem("genolab_user")
     return stored ? JSON.parse(stored) : null
   })
+  const [initializing, setInitializing] = useState(isSupabaseConfigured)
 
   useEffect(() => {
     if (!isSupabaseConfigured) return
+
     supabase.auth.getSession().then(({ data }) => {
-      if (data?.session?.user) setUser(data.session.user)
+      if (data?.session?.user) {
+        setUser(toAppUser(data.session.user))
+      }
+      setInitializing(false)
     })
+
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
+      setUser(session?.user ? toAppUser(session.user) : null)
     })
     return () => listener?.subscription?.unsubscribe()
   }, [])
+
+  // Supabase stores our custom "role" field inside user_metadata.
+  function toAppUser(supabaseUser) {
+    return {
+      id: supabaseUser.id,
+      email: supabaseUser.email,
+      role: supabaseUser.user_metadata?.role || "technician",
+    }
+  }
 
   async function login(email, password, role) {
     if (!isSupabaseConfigured) {
@@ -31,10 +46,30 @@ export function AuthProvider({ children }) {
     }
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw error
-    const userWithRole = { ...data.user, role: role || "technician" }
-    sessionStorage.setItem("genolab_user", JSON.stringify(userWithRole))
-    setUser(userWithRole)
-    return userWithRole
+    const appUser = toAppUser(data.user)
+    setUser(appUser)
+    return appUser
+  }
+
+  async function signup(email, password, role) {
+    if (!isSupabaseConfigured) {
+      throw new Error("Sign up requires a connected Supabase project. Currently running in demo mode.")
+    }
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { role: role || "technician" } },
+    })
+    if (error) throw error
+
+    // If email confirmation is enabled in the Supabase project, there's no
+    // active session yet — the user must confirm via email before logging in.
+    if (!data.session) {
+      return { needsConfirmation: true }
+    }
+    const appUser = toAppUser(data.user)
+    setUser(appUser)
+    return { needsConfirmation: false, user: appUser }
   }
 
   function logout() {
@@ -44,7 +79,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAdmin: user?.role === "admin" }}>
+    <AuthContext.Provider value={{ user, login, signup, logout, isAdmin: user?.role === "admin", initializing }}>
       {children}
     </AuthContext.Provider>
   )
