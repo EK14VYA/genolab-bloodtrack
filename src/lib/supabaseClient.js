@@ -63,7 +63,10 @@ export async function fetchInventory() {
     .select("*")
     .order("date_received", { ascending: false })
   if (error) throw error
-  return data
+  // Recalculate status from expiry_date on every read, same as mock mode,
+  // so a sample's status is always accurate even if time has passed since
+  // it was added (rather than trusting a stale "status" column value).
+  return data.map((s) => ({ ...s, status: recalcStatus(s.expiry_date) }))
 }
 
 export async function addInventorySample(sample) {
