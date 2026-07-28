@@ -3,11 +3,13 @@
 
 const BLOOD_TYPES = ["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"]
 const CENTERS = [
-  "City General Hospital",
-  "Red Cross Center - Sector 4",
-  "St. Mary's Blood Bank",
+  "D Y Patil Hospital, Pune",
+  "Apollo Hospitals",
+  "Fortis Hospital",
+  "AIIMS Blood Bank",
+  "Ruby Hall Clinic",
+  "Sassoon General Hospital",
   "Genolab Mobile Camp",
-  "District Health Center",
 ]
 
 const RACKS = ["A", "B", "C", "D"]
