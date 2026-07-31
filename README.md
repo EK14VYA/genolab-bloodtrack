@@ -87,7 +87,8 @@ generic dashboard template:
 - **Storage Map:** styled like an actual refrigerator schematic — dark "unit" panels per rack,
   slot grid inside, with a subtle pulse animation on slots nearing expiry.
 
-## For Your Report / Viva
+
+
 
 - **Frontend:** React (JavaScript/JSX), Tailwind CSS for styling, react-router-dom for navigation,
   recharts for the pie chart.
